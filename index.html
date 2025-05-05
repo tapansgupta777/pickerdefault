@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram Comments Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            color: #262626;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-top: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #262626;
+        }
+        
+        .input-group {
+            display: flex;
+            margin-bottom: 25px;
+            gap: 10px;
+        }
+        
+        input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #dbdbdb;
+            border-radius: 5px;
+            font-size: 16px;
+            outline: none;
+        }
+        
+        input:focus {
+            border-color: #a8a8a8;
+        }
+        
+        button {
+            padding: 12px 25px;
+            background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+        
+        button:hover {
+            opacity: 0.9;
+        }
+        
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 5px solid rgba(0, 0, 0, 0.1);
+            border-top-color: #bc1888;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        #comments-container {
+            margin-top: 20px;
+        }
+        
+        .comment {
+            padding: 15px;
+            border-bottom: 1px solid #efefef;
+            display: flex;
+            gap: 15px;
+        }
+        
+        .comment:last-child {
+            border-bottom: none;
+        }
+        
+        .comment-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #efefef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .comment-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .comment-content {
+            flex: 1;
+        }
+        
+        .comment-username {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .comment-text {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .comment-likes {
+            font-size: 14px;
+            color: #8e8e8e;
+        }
+        
+        .comment-date {
+            font-size: 14px;
+            color: #8e8e8e;
+            margin-top: 5px;
+        }
+        
+        .post-info {
+            margin-top: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            display: none;
+        }
+        
+        .post-info-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .post-author-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 15px;
+            background-color: #efefef;
+            overflow: hidden;
+        }
+        
+        .post-author-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .post-author {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .post-caption {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        
+        .post-stats {
+            display: flex;
+            gap: 15px;
+            color: #8e8e8e;
+            font-size: 14px;
+        }
+        
+        .no-comments {
+            text-align: center;
+            padding: 30px;
+            color: #8e8e8e;
+            display: none;
+        }
+        
+        .comments-count {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #8e8e8e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Instagram Comments Viewer</h1>
+        
+        <div class="input-group">
+            <input type="text" id="instagram-url" placeholder="Enter Instagram post URL (e.g., https://www.instagram.com/p/ABC123/)" />
+            <button id="fetch-btn">Fetch Comments</button>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>Fetching comments... This may take a minute.</p>
+        </div>
+        
+        <div class="error" id="error-message"></div>
+        
+        <div class="post-info" id="post-info">
+            <div class="post-info-header">
+                <div class="post-author-avatar" id="post-author-avatar">
+                    <!-- Avatar will be added dynamically -->
+                </div>
+                <div class="post-author" id="post-author"><!-- Author name --></div>
+            </div>
+            <div class="post-caption" id="post-caption"><!-- Caption --></div>
+            <div class="post-stats">
+                <div id="post-likes">0 likes</div>
+                <div id="post-comments-count">0 comments</div>
+            </div>
+        </div>
+        
+        <div class="comments-count" id="comments-count"></div>
+        <div id="comments-container"></div>
+        <div class="no-comments" id="no-comments">No comments found for this post.</div>
+    </div>
+
+    <script>
+        const API_KEY = 'apify_api_HncaBoFrTmcPjl1cuFGju3zwbViJJW4hjcdZ';
+        const fetchBtn = document.getElementById('fetch-btn');
+        const instagramUrlInput = document.getElementById('instagram-url');
+        const loadingElement = document.getElementById('loading');
+        const errorMessageElement = document.getElementById('error-message');
+        const commentsContainer = document.getElementById('comments-container');
+        const commentsCountElement = document.getElementById('comments-count');
+        const noCommentsElement = document.getElementById('no-comments');
+        const postInfoElement = document.getElementById('post-info');
+        const postAuthorElement = document.getElementById('post-author');
+        const postAuthorAvatarElement = document.getElementById('post-author-avatar');
+        const postCaptionElement = document.getElementById('post-caption');
+        const postLikesElement = document.getElementById('post-likes');
+        const postCommentsCountElement = document.getElementById('post-comments-count');
+
+        fetchBtn.addEventListener('click', fetchComments);
+        instagramUrlInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                fetchComments();
+            }
+        });
+        
+        // Add error handling function to display additional error details
+        function handleApiError(error, response) {
+            console.error('API Error:', error);
+            let errorMessage = 'Failed to fetch comments. ';
+            
+            if (response) {
+                try {
+                    errorMessage += `Status: ${response.status} - ${response.statusText}`;
+                } catch (e) {
+                    errorMessage += 'Unknown error occurred.';
+                }
+            }
+            
+            showError(errorMessage);
+        }
+
+        async function fetchComments() {
+            const instagramUrl = instagramUrlInput.value.trim();
+            
+            if (!instagramUrl) {
+                showError('Please enter an Instagram post URL');
+                return;
+            }
+            
+            if (!isValidInstagramUrl(instagramUrl)) {
+                showError('Please enter a valid Instagram post URL (e.g., https://www.instagram.com/p/ABC123/)');
+                return;
+            }
+            
+            // Reset previous results
+            commentsContainer.innerHTML = '';
+            hideError();
+            showLoading();
+            noCommentsElement.style.display = 'none';
+            postInfoElement.style.display = 'none';
+            
+            try {
+                // First, start the scraper run
+                const startRunResponse = await startApifyRun(instagramUrl);
+                console.log('Run started:', startRunResponse);
+                
+                if (!startRunResponse.data || !startRunResponse.data.id) {
+                    throw new Error('Invalid response from Apify API');
+                }
+                
+                const runId = startRunResponse.data.id;
+                
+                // Poll for completion
+                const runData = await pollForRunCompletion(runId);
+                console.log('Run completed:', runData);
+                
+                if (runData.status === 'SUCCEEDED') {
+                    // Get the dataset items
+                    const datasetId = runData.defaultDatasetId;
+                    const comments = await getDatasetItems(datasetId);
+                    
+                    displayComments(comments);
+                } else {
+                    showError(`The scraper failed to complete with status: ${runData.status}. Please try again later.`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                
+                // Display more informative error message
+                let errorMessage = 'An error occurred while fetching the comments: ' + error.message;
+                showError(errorMessage);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function isValidInstagramUrl(url) {
+            // Simple validation for Instagram URLs
+            const regex = /^https?:\/\/(www\.)?instagram\.com\/(p|reel)\/[\w-]+\/?/;
+            return regex.test(url);
+        }
+
+        async function startApifyRun(instagramUrl) {
+            const response = await fetch('https://api.apify.com/v2/acts/apify~instagram-scraper/runs?token=' + API_KEY, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    "directUrls": [instagramUrl],
+                    "resultsType": "comments",
+                    "resultsLimit": 100,
+                    "maxRequestRetries": 5,
+                    "proxy": {
+                        "useApifyProxy": true
+                    }
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to start the scraper');
+            }
+            
+            return response.json();
+        }
+
+        async function pollForRunCompletion(runId) {
+            const maxAttempts = 30; // Increased attempts
+            const delayMs = 5000; // 5 seconds
+            
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                try {
+                    const response = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${API_KEY}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`API returned status ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (!data || !data.data) {
+                        throw new Error('Invalid response format from Apify API');
+                    }
+                    
+                    // Update loading message with current status
+                    document.getElementById('loading').innerHTML = `
+                        <div class="loading-spinner"></div>
+                        <p>Fetching comments... (Status: ${data.data.status || 'UNKNOWN'})</p>
+                        <p>Attempt ${attempt + 1}/${maxAttempts}</p>
+                    `;
+                    
+                    if (data.data.status === 'SUCCEEDED' || data.data.status === 'FAILED' || data.data.status === 'TIMED-OUT') {
+                        return data.data;
+                    }
+                    
+                } catch (error) {
+                    console.error('Error polling run status:', error);
+                    // Continue polling despite errors
+                }
+                
+                // Wait before polling again
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+            
+            throw new Error('Timeout waiting for the scraper to complete');
+        }
+
+        async function getDatasetItems(datasetId) {
+            try {
+                const response = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${API_KEY}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch dataset items. Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Dataset items retrieved:', data.length || 0, 'items');
+                return data;
+            } catch (error) {
+                console.error('Error fetching dataset:', error);
+                throw error;
+            }
+        }
+
+        function displayComments(data) {
+            if (!data || data.length === 0) {
+                noCommentsElement.style.display = 'block';
+                return;
+            }
+            
+            // Extract post information from the first comment's ownerPost field
+            const firstItem = data[0];
+            if (firstItem && firstItem.ownerPost) {
+                displayPostInfo(firstItem.ownerPost);
+            }
+            
+            // Filter out any non-comment objects that might be in the data
+            const comments = data.filter(item => item.text && item.ownerUsername);
+            
+            if (comments.length === 0) {
+                noCommentsElement.style.display = 'block';
+                return;
+            }
+            
+            commentsCountElement.textContent = `Showing ${comments.length} comment${comments.length === 1 ? '' : 's'}`;
+            
+            comments.forEach(comment => {
+                const commentElement = createCommentElement(comment);
+                commentsContainer.appendChild(commentElement);
+            });
+        }
+
+        function displayPostInfo(postData) {
+            if (!postData) return;
+            
+            postInfoElement.style.display = 'block';
+            
+            // Set author info
+            postAuthorElement.textContent = postData.ownerUsername || 'Unknown';
+            
+            // Set author avatar
+            if (postData.ownerProfilePicUrl) {
+                postAuthorAvatarElement.innerHTML = `<img src="${postData.ownerProfilePicUrl}" alt="${postData.ownerUsername}" />`;
+            } else {
+                // Default avatar if no image available
+                postAuthorAvatarElement.innerHTML = `<div style="width:100%;height:100%;background:#e1e1e1;display:flex;align-items:center;justify-content:center;">${(postData.ownerUsername || '?')[0].toUpperCase()}</div>`;
+            }
+            
+            // Set post caption
+            postCaptionElement.textContent = postData.caption || '';
+            
+            // Set post stats
+            const likesCount = postData.likesCount || 0;
+            const commentsCount = postData.commentsCount || 0;
+            
+            postLikesElement.textContent = `${likesCount.toLocaleString()} like${likesCount === 1 ? '' : 's'}`;
+            postCommentsCountElement.textContent = `${commentsCount.toLocaleString()} comment${commentsCount === 1 ? '' : 's'}`;
+        }
+
+        function createCommentElement(comment) {
+            const commentDiv = document.createElement('div');
+            commentDiv.className = 'comment';
+            
+            // Avatar
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'comment-avatar';
+            
+            if (comment.authorPicUrl) {
+                const avatarImg = document.createElement('img');
+                avatarImg.src = comment.authorPicUrl;
+                avatarImg.alt = comment.ownerUsername || 'User';
+                avatarDiv.appendChild(avatarImg);
+            } else {
+                // Default avatar if no image available
+                avatarDiv.innerHTML = `<div style="width:100%;height:100%;background:#e1e1e1;display:flex;align-items:center;justify-content:center;">${(comment.ownerUsername || '?')[0].toUpperCase()}</div>`;
+            }
+            
+            // Comment content
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'comment-content';
+            
+            // Username
+            const usernameDiv = document.createElement('div');
+            usernameDiv.className = 'comment-username';
+            usernameDiv.textContent = comment.ownerUsername || 'Anonymous';
+            
+            // Comment text
+            const textDiv = document.createElement('div');
+            textDiv.className = 'comment-text';
+            textDiv.textContent = comment.text || '';
+            
+            // Likes count
+            const likesDiv = document.createElement('div');
+            likesDiv.className = 'comment-likes';
+            const likesCount = comment.likesCount || 0;
+            likesDiv.textContent = `${likesCount} like${likesCount === 1 ? '' : 's'}`;
+            
+            // Date
+            if (comment.timestamp) {
+                const dateDiv = document.createElement('div');
+                dateDiv.className = 'comment-date';
+                const date = new Date(comment.timestamp);
+                dateDiv.textContent = formatDate(date);
+                contentDiv.appendChild(dateDiv);
+            }
+            
+            // Append elements
+            contentDiv.appendChild(usernameDiv);
+            contentDiv.appendChild(textDiv);
+            contentDiv.appendChild(likesDiv);
+            
+            commentDiv.appendChild(avatarDiv);
+            commentDiv.appendChild(contentDiv);
+            
+            return commentDiv;
+        }
+
+        function formatDate(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffSecs = Math.floor(diffMs / 1000);
+            const diffMins = Math.floor(diffSecs / 60);
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+            const diffWeeks = Math.floor(diffDays / 7);
+            
+            if (diffSecs < 60) {
+                return 'just now';
+            } else if (diffMins < 60) {
+                return `${diffMins}m ago`;
+            } else if (diffHours < 24) {
+                return `${diffHours}h ago`;
+            } else if (diffDays < 7) {
+                return `${diffDays}d ago`;
+            } else if (diffWeeks < 4) {
+                return `${diffWeeks}w ago`;
+            } else {
+                // Format as MM/DD/YYYY
+                return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+            }
+        }
+
+        function showLoading() {
+            loadingElement.style.display = 'block';
+            fetchBtn.disabled = true;
+        }
+
+        function hideLoading() {
+            loadingElement.style.display = 'none';
+            fetchBtn.disabled = false;
+        }
+
+        function showError(message) {
+            errorMessageElement.textContent = message;
+            errorMessageElement.style.display = 'block';
+        }
+
+        function hideError() {
+            errorMessageElement.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
